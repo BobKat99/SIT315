@@ -1,6 +1,8 @@
 #include <mpi.h>
 #include <stdio.h>
 
+// mpirun -np 4 --hostfile ./cluster ./test.o
+
 int main(int argc, char** argv) {
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
