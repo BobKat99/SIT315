@@ -9,6 +9,8 @@
 #include <mpi.h>
 #include <CL/cl.h>
 
+// mpicxx -opencl ./demo/mpi-opencl-add\ your\ code\ here.cpp -o final.o -std=c++11 -lOpenCL
+
 using namespace std;
 
 #define BILLION 1000000000L;
@@ -34,8 +36,8 @@ int err;
 
 cl_mem bufA, bufB, bufC;
 
-size_t local[2] = {TS, TS};
-size_t global[2] = {SZ, SZ}; // number of rows and cols or basically the number of threads with indices i and j where i is the row and j is the col of the matric C
+size_t local[2] = {(size_t)TS, (size_t)TS};
+size_t global[2] = {(size_t)SZ, (size_t)SZ}; // number of rows and cols or basically the number of threads with indices i and j where i is the row and j is the col of the matric C
 
 cl_device_id create_device();
 cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename);
@@ -95,6 +97,11 @@ void head(int num_processes)
     MPI_Bcast(&B[0][0], num_elements_to_bcast, MPI_INT, 0, MPI_COMM_WORLD);
 
 //Start of OpenCL
+local[0] = num_rows_per_process_from_A;
+local[1] = SZ;
+global[0] = num_rows_per_process_from_A;
+local[1] = SZ;
+
 setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
 copy_kernel_args(num_rows_per_process_from_A);
@@ -111,7 +118,6 @@ clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, SZ * SZ *sizeof(int), &C[0][0], 0, 
 
 void node(int process_rank, int num_processes)
 {
-
     //MPI
     ////OpenCL
     //MPI
@@ -126,6 +132,11 @@ void node(int process_rank, int num_processes)
 
 
 //Start of OpenCL
+local[0] = num_rows_per_process_from_A;
+local[1] = SZ;
+global[0] = num_rows_per_process_from_A;
+local[1] = SZ;
+
 setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
 copy_kernel_args(num_rows_per_process_from_A);
