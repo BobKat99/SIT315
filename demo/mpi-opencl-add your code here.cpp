@@ -100,7 +100,7 @@ void head(int num_processes)
 local[0] = num_rows_per_process_from_A;
 local[1] = SZ;
 global[0] = num_rows_per_process_from_A;
-local[1] = SZ;
+global[1] = SZ;
 
 setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
@@ -135,7 +135,7 @@ void node(int process_rank, int num_processes)
 local[0] = num_rows_per_process_from_A;
 local[1] = SZ;
 global[0] = num_rows_per_process_from_A;
-local[1] = SZ;
+global[1] = SZ;
 
 setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
