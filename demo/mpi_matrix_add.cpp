@@ -7,6 +7,8 @@
 #include <thread>
 #include <mpi.h>
 
+// mpirun -np 4 --hostfile ./cluster ./test.o 
+
 using namespace std;
 
 #define BILLION  1000000000L;

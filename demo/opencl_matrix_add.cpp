@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include<CL/cl.h>
 
+// mpicxx -opencl ./demo/opencl_matrix_add.cpp -o check.o -std=c++11 -lOpenCL
+
 int NUM_THREADS = 1;
 int SZ = 8;
 int **A, **B, **C;
