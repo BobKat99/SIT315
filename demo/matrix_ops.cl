@@ -7,7 +7,6 @@ __kernel void add_matrices(const int M, const int N, const int K,
     const int globalRow = get_global_id(0); // Row ID of C (0..M)
     const int globalCol = get_global_id(1); // Col ID of C (0..N)
  
-    printf("Kernel print::(%d,%d)\n ", globalRow, globalCol);
     C[globalCol*M + globalRow] = A[globalCol*M + globalRow] + B[globalCol*M + globalRow];
     
 }

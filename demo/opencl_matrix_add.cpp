@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     //print(C, SZ, SZ);
 
     //this function is used to setup the device, context, queue program and kernel -- make sure to set file name (1) and kernel name (2)
-   setup_openCL_device_context_queue_kernel( (char*) "./matrix_ops.cl" , (char*) "add_matrices");
+   setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "add_matrices");
 
 
    //this function is used to load/copy memory and link arguments -- you will need to change this 

@@ -1,19 +1,3 @@
-/*
-
-In this demo, I wish you matrix addition C = A  + B, C[i][j] = A[i][j] + B[i][j]
-
-
-A array of pointers, and each pointer was pointing to an array
-A
-A[0] --> [ array A[0][j]]
-A[1] --> [ array A[1][j]]
-A[2] --> [ array A[2][j]]
-A[3] --> [ array A[3][j]]
-A[SZ - 1] --> [ array A[SZ-1][j]]
-
-*/
-
-
 #include <iostream>
 #include<stdio.h>
 #include<time.h>
