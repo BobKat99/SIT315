@@ -40,9 +40,9 @@ size_t global[2] = {SZ, SZ}; // number of rows and cols or basically the number 
 cl_device_id create_device();
 cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename);
 
-void setup_openCL_device_context_queue_kernel();
+void setup_openCL_device_context_queue_kernel(char* filename, char* kernelname);
 void setup_kernel_memory(int num_rows_per_process_from_A);
-void copy_kernel_args(int num_rows_per_process_from_A, int rank);
+void copy_kernel_args(int num_rows_per_process_from_A);
 void free_memory();
 
 int main(int argc, char **argv)
@@ -95,6 +95,12 @@ void head(int num_processes)
     MPI_Bcast(&B[0][0], num_elements_to_bcast, MPI_INT, 0, MPI_COMM_WORLD);
 
 //Start of OpenCL
+setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+setup_kernel_memory(num_rows_per_process_from_A);
+copy_kernel_args(num_rows_per_process_from_A);
+clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
+clWaitForEvents(1, &event);
+clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, SZ * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
 //end of OpenCL
 
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &C[0][0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
@@ -120,6 +126,12 @@ void node(int process_rank, int num_processes)
 
 
 //Start of OpenCL
+setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+setup_kernel_memory(num_rows_per_process_from_A);
+copy_kernel_args(num_rows_per_process_from_A);
+clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
+clWaitForEvents(1, &event);
+clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, SZ * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
 //End of OpenCL
    
     MPI_Gather(&C[0][0], num_elements_to_scatter_or_gather, MPI_INT, NULL, num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
@@ -206,33 +218,29 @@ void print(int **A, int rows, int cols)
     printf("--------------------------------------\n");
 }
 
-void setup_openCL_device_context_queue_kernel()
-{
+void setup_openCL_device_context_queue_kernel(char* filename, char* kernelname) {
     device_id = create_device();
     cl_int err;
     context = clCreateContext(NULL, 1, &device_id, NULL, NULL, &err);
-    if (err < 0)
-    {
-        perror("Couldn't create a context");
-        exit(1);
+   if(err < 0) {
+      perror("Couldn't create a context");
+      exit(1);   
     }
 
-    program = build_program(context, device_id, "./matrix_mul.cl");
-
+    program = build_program(context, device_id, filename );
     queue = clCreateCommandQueueWithProperties(context, device_id, 0, &err);
-    if (err < 0)
-    {
-        perror("Couldn't create a command queue");
-        exit(1);
+    if(err < 0) {
+      perror("Couldn't create a command queue");
+      exit(1);   
     };
 
-    kernel = clCreateKernel(program, "multiply_matrices", &err);
-    if (err < 0)
-    {
-        perror("Couldn't create a kernel");
-        printf("error =%d", err);
-        exit(1);
+    kernel = clCreateKernel(program, kernelname, &err);
+    if(err < 0) {
+      perror("Couldn't create a kernel");
+      printf("error =%d", err);
+      exit(1);
     };
+
 }
 
 cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
