@@ -97,8 +97,8 @@ void head(int num_processes)
     MPI_Bcast(&B[0][0], num_elements_to_bcast, MPI_INT, 0, MPI_COMM_WORLD);
 
 //Start of OpenCL
-local[0] = num_rows_per_process_from_A;
-local[1] = SZ;
+local[0] = 4;
+local[1] = 4;
 global[0] = num_rows_per_process_from_A;
 global[1] = SZ;
 
@@ -132,8 +132,8 @@ void node(int process_rank, int num_processes)
 
 
 //Start of OpenCL
-local[0] = num_rows_per_process_from_A;
-local[1] = SZ;
+local[0] = 4;
+local[1] = 4;
 global[0] = num_rows_per_process_from_A;
 global[1] = SZ;
 
