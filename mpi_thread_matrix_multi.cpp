@@ -30,6 +30,8 @@ void node(int process_rank, int num_processes);
 
 int main(int argc, char** argv) {
     if(argc > 1) SZ = atoi(argv[1]);
+    if(argc > 2) NUM_THREADS = atoi(argv[2]);
+    // cout << NUM_THREADS << endl;
 
     MPI_Init(NULL, NULL);
 

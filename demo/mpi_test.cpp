@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 // mpirun -np 4 --hostfile ./cluster ./test.o
+// NOTE: only work after doing the ssh as the ssh will as the IPs
 
 int main(int argc, char** argv) {
     // Initialize the MPI environment
