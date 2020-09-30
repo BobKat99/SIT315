@@ -107,7 +107,7 @@ setup_kernel_memory(num_rows_per_process_from_A);
 copy_kernel_args(num_rows_per_process_from_A);
 clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
 clWaitForEvents(1, &event);
-clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, SZ * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
+clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
 //end of OpenCL
 
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &C[0][0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
@@ -137,12 +137,12 @@ local[1] = 4;
 global[0] = num_rows_per_process_from_A;
 global[1] = SZ;
 
-setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+setup_openCL_device_context_queue_kernel( (char*) "./demo/test.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
 copy_kernel_args(num_rows_per_process_from_A);
 clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
 clWaitForEvents(1, &event);
-clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, SZ * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
+clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
 //End of OpenCL
    
     MPI_Gather(&C[0][0], num_elements_to_scatter_or_gather, MPI_INT, NULL, num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
