@@ -9,7 +9,7 @@
 #include <mpi.h>
 #include <CL/cl.h>
 
-// mpicxx -opencl ./demo/mpi-opencl-add\ your\ code\ here.cpp -o final.o -std=c++11 -lOpenCL
+// mpicxx -opencl ./mpi_opencl_matrix_multi.cpp -o mpiopencl.o -std=c++11 -lOpenCL
 
 using namespace std;
 
@@ -96,19 +96,19 @@ void head(int num_processes)
     MPI_Scatter(&A[0][0], num_elements_to_scatter_or_gather, MPI_INT, &A, 0, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&B[0][0], num_elements_to_bcast, MPI_INT, 0, MPI_COMM_WORLD);
 
-//Start of OpenCL
-local[0] = 4;
-local[1] = 4;
-global[0] = num_rows_per_process_from_A;
-global[1] = SZ;
+    //Start of OpenCL
+    local[0] = 4;
+    local[1] = 4;
+    global[0] = num_rows_per_process_from_A;
+    global[1] = SZ;
 
-setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
-setup_kernel_memory(num_rows_per_process_from_A);
-copy_kernel_args(num_rows_per_process_from_A, 0);
-clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
-clWaitForEvents(1, &event);
-clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
-//end of OpenCL
+    setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+    setup_kernel_memory(num_rows_per_process_from_A);
+    copy_kernel_args(num_rows_per_process_from_A, 0);
+    clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
+    clWaitForEvents(1, &event);
+    clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
+    //end of OpenCL
 
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &C[0][0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -131,19 +131,19 @@ void node(int process_rank, int num_processes)
     MPI_Bcast(&B[0][0], num_elements_to_bcast, MPI_INT, 0, MPI_COMM_WORLD);
 
 
-//Start of OpenCL
-local[0] = 4;
-local[1] = 4;
-global[0] = num_rows_per_process_from_A;
-global[1] = SZ;
+    //Start of OpenCL
+    local[0] = 4;
+    local[1] = 4;
+    global[0] = num_rows_per_process_from_A;
+    global[1] = SZ;
 
-setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
-setup_kernel_memory(num_rows_per_process_from_A);
-copy_kernel_args(num_rows_per_process_from_A, process_rank);
-clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
-clWaitForEvents(1, &event);
-clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
-//End of OpenCL
+    setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+    setup_kernel_memory(num_rows_per_process_from_A);
+    copy_kernel_args(num_rows_per_process_from_A, process_rank);
+    clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
+    clWaitForEvents(1, &event);
+    clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
+    //End of OpenCL
    
     MPI_Gather(&C[0][0], num_elements_to_scatter_or_gather, MPI_INT, NULL, num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
     free_memory();
