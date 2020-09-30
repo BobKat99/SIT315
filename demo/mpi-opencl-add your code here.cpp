@@ -44,7 +44,7 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char *filename)
 
 void setup_openCL_device_context_queue_kernel(char* filename, char* kernelname);
 void setup_kernel_memory(int num_rows_per_process_from_A);
-void copy_kernel_args(int num_rows_per_process_from_A);
+void copy_kernel_args(int num_rows_per_process_from_A, int rank);
 void free_memory();
 
 int main(int argc, char **argv)
@@ -93,7 +93,7 @@ void head(int num_processes)
     int num_elements_to_scatter_or_gather = (SZ * SZ) / num_processes;
     
     
-    MPI_Scatter(&A[0][0], num_elements_to_scatter_or_gather, MPI_INT, &A[0][0], 0, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(&A[0][0], num_elements_to_scatter_or_gather, MPI_INT, &A, 0, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&B[0][0], num_elements_to_bcast, MPI_INT, 0, MPI_COMM_WORLD);
 
 //Start of OpenCL
@@ -104,7 +104,7 @@ global[1] = SZ;
 
 setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
-copy_kernel_args(num_rows_per_process_from_A);
+copy_kernel_args(num_rows_per_process_from_A, 0);
 clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
 clWaitForEvents(1, &event);
 clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
@@ -139,7 +139,7 @@ global[1] = SZ;
 
 setup_openCL_device_context_queue_kernel( (char*) "./demo/test.cl" , (char*) "multiply_matrices");
 setup_kernel_memory(num_rows_per_process_from_A);
-copy_kernel_args(num_rows_per_process_from_A);
+copy_kernel_args(num_rows_per_process_from_A, process_rank);
 clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
 clWaitForEvents(1, &event);
 clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, num_rows_per_process_from_A * SZ *sizeof(int), &C[0][0], 0, NULL, NULL);
@@ -162,11 +162,11 @@ void free_memory()
     clReleaseContext(context);
 }
 
-void copy_kernel_args(int num_rows_per_process_from_A)
+void copy_kernel_args(int num_rows_per_process_from_A, int rank)
 {
     //NOTE that we modified the first parameter (Rows of A)
     clSetKernelArg(kernel, 0, sizeof(int), (void *)&num_rows_per_process_from_A);
-    clSetKernelArg(kernel, 1, sizeof(int), (void *)&SZ);
+    clSetKernelArg(kernel, 1, sizeof(int), (void *)&rank);
     clSetKernelArg(kernel, 2, sizeof(int), (void *)&SZ);
 
     clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&bufA);
