@@ -8,6 +8,9 @@
 #include <mpi.h>
 #include <omp.h>
 
+// mpicxx ./mpi_thread_matrix_multi.cpp -o mpithread.o -fopenmp
+// mpirun -np 4 --hostfile ./cluster ./mpithread.o 1000
+
 using namespace std;
 
 #define BILLION  1000000000L;

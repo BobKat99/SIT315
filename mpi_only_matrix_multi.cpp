@@ -9,6 +9,9 @@
 
 using namespace std;
 
+// mpicxx ./mpi_only_matrix_multi.cpp -o mpionly.o
+// mpirun -np 4 --hostfile ./cluster ./mpionly.o 1000
+
 #define BILLION  1000000000L;
 int NUM_THREADS = 4;
 

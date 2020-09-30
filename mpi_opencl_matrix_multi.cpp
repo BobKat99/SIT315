@@ -10,6 +10,7 @@
 #include <CL/cl.h>
 
 // mpicxx -opencl ./mpi_opencl_matrix_multi.cpp -o mpiopencl.o -std=c++11 -lOpenCL
+// mpirun -np 4 --hostfile ./cluster ./mpiopencl.o 500
 
 using namespace std;
 
@@ -102,7 +103,7 @@ void head(int num_processes)
     global[0] = num_rows_per_process_from_A;
     global[1] = SZ;
 
-    setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+    setup_openCL_device_context_queue_kernel( (char*) "./matrix_ops.cl" , (char*) "multiply_matrices");
     setup_kernel_memory(num_rows_per_process_from_A);
     copy_kernel_args(num_rows_per_process_from_A, 0);
     clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
@@ -137,7 +138,7 @@ void node(int process_rank, int num_processes)
     global[0] = num_rows_per_process_from_A;
     global[1] = SZ;
 
-    setup_openCL_device_context_queue_kernel( (char*) "./demo/matrix_ops.cl" , (char*) "multiply_matrices");
+    setup_openCL_device_context_queue_kernel( (char*) "./matrix_ops.cl" , (char*) "multiply_matrices");
     setup_kernel_memory(num_rows_per_process_from_A);
     copy_kernel_args(num_rows_per_process_from_A, process_rank);
     clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &event);
