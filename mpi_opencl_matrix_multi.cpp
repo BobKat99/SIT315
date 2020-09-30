@@ -7,12 +7,14 @@
 #include <stdlib.h>
 #include <thread>
 #include <mpi.h>
+#include <chrono>
 #include <CL/cl.h>
 
 // mpicxx -opencl ./mpi_opencl_matrix_multi.cpp -o mpiopencl.o -std=c++11 -lOpenCL
 // mpirun -np 4 --hostfile ./cluster ./mpiopencl.o 500
 
 using namespace std;
+using nano_s = chrono::nanoseconds;
 
 #define BILLION 1000000000L;
 int SZ = 4;
@@ -64,7 +66,6 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
     int process_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
-  
 
     if (process_rank == 0)
     {
@@ -86,8 +87,9 @@ void head(int num_processes)
     
 
     init(A, SZ, SZ, true), init(B, SZ, SZ, true), init(C, SZ, SZ, false), init(D, SZ, SZ, false);
-    print(A, SZ, SZ);
-    print(B, SZ, SZ);
+    // print(A, SZ, SZ);
+    // print(B, SZ, SZ);
+    auto t1 = chrono::steady_clock::now();
 
     int num_rows_per_process_from_A = SZ / num_processes;
     int num_elements_to_bcast = (SZ * SZ);
@@ -113,7 +115,14 @@ void head(int num_processes)
 
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &C[0][0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
 
-    print(C, SZ, SZ);
+    //calculate time to milliseconds
+    auto t2 = chrono::steady_clock::now();
+    auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
+    float a = d_nano;
+    float d_milli = a/1000000L;
+    cout << "time elapse: " << d_milli << "ms" << endl;
+
+    // print(C, SZ, SZ);
     free_memory();
 }
 

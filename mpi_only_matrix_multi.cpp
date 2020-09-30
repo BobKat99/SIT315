@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <thread>
 #include <mpi.h>
+#include <chrono>
 
 using namespace std;
+using nano_s = chrono::nanoseconds;
 
 // mpicxx ./mpi_only_matrix_multi.cpp -o mpionly.o
 // mpirun -np 4 --hostfile ./cluster ./mpionly.o 1000
@@ -40,7 +42,7 @@ int main(int argc, char** argv) {
         head(num_processes);
     else
         node(process_rank, num_processes);
-    
+
     MPI_Finalize();
 }
 
@@ -48,8 +50,9 @@ void head(int num_processes)
 {
     init(A, SZ, SZ, true), init(B, SZ, SZ, true), init(C, SZ, SZ, false);
     
-    print(A, SZ, SZ);
-    print(B, SZ, SZ);
+    // print(A, SZ, SZ);
+    // print(B, SZ, SZ);
+    auto t1 = chrono::steady_clock::now();
 
     //my plan is to scatter A based on number of processes and broadcast B to all nodes
     int num_rows_per_process_from_A = SZ / num_processes;
@@ -72,9 +75,13 @@ void head(int num_processes)
         }
     }
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &C[0][0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
-    //send the results back to the head node for merging and printing
-
-    print(C, SZ, SZ);
+    //calculate time to milliseconds
+    auto t2 = chrono::steady_clock::now();
+    auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
+    float a = d_nano;
+    float d_milli = a/1000000L;
+    cout << "time elapse: " << d_milli << "ms" << endl;
+    // print(C, SZ, SZ);
 
 
 }
