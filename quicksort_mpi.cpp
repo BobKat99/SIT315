@@ -11,19 +11,9 @@
 using namespace std;
 using nano_s = chrono::nanoseconds;
 
-// mpicxx ./mpi_only_matrix_multi.cpp -o mpionly.o
-// mpirun -np 4 --hostfile ./cluster ./mpionly.o 1000
-
-#define BILLION  1000000000L;
-int NUM_THREADS = 4;
-
-int SZ = 8;
+int SZ = 4;
 int **A, **B, **C;
 
-void init(int** &matrix, int rows, int cols, bool initialise);
-void print( int** matrix, int rows, int cols);
-void* add(void* block_id);
-void* multiply(void* args);
 void head(int num_processes);
 void node(int process_rank, int num_processes);
 
@@ -113,32 +103,9 @@ void node(int process_rank, int num_processes)
 
 }
 
-
-
-void init(int** &A, int rows, int cols, bool initialise) {
-    A = (int **) malloc(sizeof(int*) * rows * cols);  // number of rows * size of int* address in the memory
-    int* tmp = (int *) malloc(sizeof(int) * cols * rows); 
-
-    for(int i = 0 ; i < SZ ; i++) {
-        A[i] = &tmp[i * cols];
+void print_arr(int arr[], int size) {
+    for (int i = 0; i < size; i++) {
+        cout << arr[i] << " ";
     }
-  
-
-    if(!initialise) return;
-
-    for(long i = 0 ; i < rows; i++) {
-        for(long j = 0 ; j < cols; j++) {
-            A[i][j] = rand() % 100; // any number less than 100
-        }
-    }
-}
-
-void print( int** A, int rows, int cols) {
-  for(long i = 0 ; i < rows; i++) { //rows
-        for(long j = 0 ; j < cols; j++) {  //cols
-            printf("%d ",  A[i][j]); // print the cell value
-        }
-        printf("\n"); //at the end of the row, print a new line
-    }
-    printf("----------------------------\n");
+    cout << endl;
 }

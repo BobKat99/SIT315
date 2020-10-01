@@ -120,9 +120,9 @@ void head(int num_processes)
     auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
     float a = d_nano;
     float d_milli = a/1000000L;
-    cout << "time elapse: " << d_milli << "ms" << endl;
 
     // print(C, SZ, SZ);
+    cout << "time elapse: " << d_milli << "ms" << endl;
     free_memory();
 }
 
