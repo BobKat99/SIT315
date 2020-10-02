@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <stdio.h>
 
+// mpicxx ./demo/mpi_test.cpp -o test.o
 // mpirun -np 4 --hostfile ./cluster ./test.o
 // NOTE: only work after doing the ssh as the ssh will as the IPs
 
