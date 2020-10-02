@@ -20,6 +20,7 @@ void head(int num_processes);
 void node(int process_rank, int num_processes);
 
 void init(int * &arr, int size, bool initialise);
+void quickSort(int * arr, int start, int end);
 void print_arr(int * arr, int size);
 
 int main(int argc, char** argv) {
@@ -50,14 +51,15 @@ void head(int num_processes)
     //my plan is to scatter A based on number of processes and broadcast B to all nodes
     int num_elements_to_scatter_or_gather = SZ / num_processes;
 
-
     MPI_Scatter(&arr[0], num_elements_to_scatter_or_gather ,  MPI_INT , &arr , 0, MPI_INT, 0 , MPI_COMM_WORLD);
     
     //sorting
-    print_arr(arr, num_elements_to_scatter_or_gather);
+    quickSort(arr, 0, num_elements_to_scatter_or_gather - 1);
+    // print_arr(arr, num_elements_to_scatter_or_gather);
    
-    MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &arr , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
+    MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &arr[0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
     
+    print_arr(arr, SZ);
     // //calculate time to milliseconds
     // auto t2 = chrono::steady_clock::now();
     // auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
@@ -77,7 +79,8 @@ void node(int process_rank, int num_processes)
     MPI_Scatter(NULL, num_elements_to_scatter_or_gather , MPI_INT , &arr[0], num_elements_to_scatter_or_gather, MPI_INT, 0 , MPI_COMM_WORLD);
     
     //sorting
-    print_arr(arr, num_elements_to_scatter_or_gather);
+    quickSort(arr, 0, num_elements_to_scatter_or_gather - 1);
+    // print_arr(arr, num_elements_to_scatter_or_gather);
 
     MPI_Gather(&arr[0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
 
@@ -90,6 +93,28 @@ void init(int * &arr, int size, bool initialise) {
 
     for (int i = 0; i < SZ; i++) {
         arr[i] = rand() % 6;
+    }
+}
+
+void swap(int * arr, int i1, int i2) {
+    int value = arr[i1];
+    arr[i1] = arr[i2];
+    arr[i2] = value;
+}
+
+void quickSort(int * arr, int start, int end) {
+    if (start < end) {
+        int pivot = end;
+        for (int i = start; i < pivot; i++) {
+            if (arr[i] >= arr[pivot]) {
+                swap(arr, i, pivot);
+                swap(arr, i, (pivot - 1));
+                pivot--;
+                i--;
+            }
+        }
+        quickSort(arr, start, (pivot-1));
+        quickSort(arr, (pivot + 1), end);
     }
 }
 
