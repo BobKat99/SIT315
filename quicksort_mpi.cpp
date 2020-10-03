@@ -14,7 +14,7 @@ using namespace std;
 using nano_s = chrono::nanoseconds;
 
 int SZ = 4;
-int * arr;
+int * arr, * leftArr, * rightArr;
 
 void head(int num_processes);
 void node(int process_rank, int num_processes);
@@ -45,21 +45,37 @@ int main(int argc, char** argv) {
 void head(int num_processes)
 {
     init(arr, SZ, true);
+    int pivot = arr[SZ -1];
     // auto t1 = chrono::steady_clock::now();
     print_arr(arr, SZ);
 
     //my plan is to scatter A based on number of processes and broadcast B to all nodes
     int num_elements_to_scatter_or_gather = SZ / num_processes;
+    init(leftArr, SZ, false);
+    init(rightArr, SZ, false);
+    int topl = -1;
+    int topr = -1;
 
     MPI_Scatter(&arr[0], num_elements_to_scatter_or_gather ,  MPI_INT , &arr , 0, MPI_INT, 0 , MPI_COMM_WORLD);
+    MPI_Bcast(&pivot, 1 , MPI_INT , 0 , MPI_COMM_WORLD);
     
     //sorting
-    quickSort(arr, 0, num_elements_to_scatter_or_gather - 1);
+    for (int i = 0; i < num_elements_to_scatter_or_gather; i++) {
+        if (arr[i] < pivot) {
+            leftArr[++topl] = arr[i];
+        } else {
+            rightArr[++topr] = arr[i];
+        }
+    }
+
+    print_arr(leftArr, topl+1);
+    print_arr(rightArr, topr+1);
     // print_arr(arr, num_elements_to_scatter_or_gather);
    
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &arr[0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
+    // MPI_Gather(MPI_IN_PLACE, topl , MPI_INT, &leftArr[0] , topl , MPI_INT, 0 , MPI_COMM_WORLD);
     
-    print_arr(arr, SZ);
+    // print_arr(leftArr, SZ);
     // //calculate time to milliseconds
     // auto t2 = chrono::steady_clock::now();
     // auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
@@ -71,15 +87,30 @@ void head(int num_processes)
 }
 void node(int process_rank, int num_processes)
 {
+    int pivot;
+
     int num_elements_to_scatter_or_gather = SZ / num_processes;
     init(arr, num_elements_to_scatter_or_gather, false);
 
-    //receive my rows of matrix A, and all B
+    init(leftArr, num_elements_to_scatter_or_gather, false);
+    init(rightArr, num_elements_to_scatter_or_gather, false);
+    int topl = -1;
+    int topr = -1;
 
     MPI_Scatter(NULL, num_elements_to_scatter_or_gather , MPI_INT , &arr[0], num_elements_to_scatter_or_gather, MPI_INT, 0 , MPI_COMM_WORLD);
-    
+    MPI_Bcast(&pivot, 1 , MPI_INT , 0 , MPI_COMM_WORLD);
+
     //sorting
-    quickSort(arr, 0, num_elements_to_scatter_or_gather - 1);
+    for (int i = 0; i < num_elements_to_scatter_or_gather; i++) {
+        if (arr[i] < pivot) {
+            leftArr[++topl] = arr[i];
+        } else {
+            rightArr[++topr] = arr[i];
+        }
+    }
+
+    print_arr(leftArr, topl+1);
+    print_arr(rightArr, topr+1);
     // print_arr(arr, num_elements_to_scatter_or_gather);
 
     MPI_Gather(&arr[0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
