@@ -11,14 +11,14 @@
 #include <CL/cl.h>
 
 // mpicxx -opencl ./quicksort_opencl.cpp -o quicksortCL.o -std=c++11 -lOpenCL
-// mpirun -np 4 --hostfile ./cluster ./mpiopencl.o 500
+// mpirun -np 5 --hostfile ./cluster ./quicksortCL.o 1000
 
 using namespace std;
 using nano_s = chrono::nanoseconds;
 
 int SZ = 4;
 const int TS = 4;
-int * arr, *resultA;
+int * arr, *resultA, *dummyA, *finalResult;
 
 void init(int * &arr, int size, bool initialise);
 void print_arr(int * arr, int size);
@@ -76,12 +76,15 @@ void head(int num_processes)
 {
     init(arr, SZ, true);
     init(resultA, SZ, false);
+    init(finalResult, SZ, false);
+    int dumdum[SZ];
 
     print_arr(arr, SZ);
     // auto t1 = chrono::steady_clock::now();
 
     int num_elements_to_scatter_or_gather = SZ / num_processes;
     
+    init(dummyA, num_elements_to_scatter_or_gather, false);
     MPI_Scatter(&arr[0], num_elements_to_scatter_or_gather ,  MPI_INT , &arr , 0, MPI_INT, 0 , MPI_COMM_WORLD);
     //Start of OpenCL
     local[0] = 2;
@@ -95,8 +98,48 @@ void head(int num_processes)
     clEnqueueReadBuffer(queue, bufResult, CL_TRUE, 0, num_elements_to_scatter_or_gather *sizeof(int), &resultA[0], 0, NULL, NULL);
     //end of OpenCL
 
-    MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &resultA[0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
-    print_arr(resultA, SZ);
+    for (int j = 0; j < num_elements_to_scatter_or_gather; j++) {
+        dumdum[j] = arr[j];
+    }
+
+    int k = num_elements_to_scatter_or_gather; // the number element got sorted in the result
+    for (int i = 1; i < num_processes; i++) {
+        // MPI_Bcast(&dummyA[0], num_elements_to_scatter_or_gather, MPI_INT , i , MPI_COMM_WORLD);
+        MPI_Recv(&dummyA[0], num_elements_to_scatter_or_gather, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        int a = 0;
+        int b = 0; 
+        int c = 0;
+        while(a < k && b < num_elements_to_scatter_or_gather) {
+            if(dumdum[a] <= dummyA[b]) {
+                finalResult[c] = dumdum[a];
+                a++;
+            } else {
+                finalResult[c] = dummyA[b];
+                b++;
+            }
+            c++;
+        }
+
+        while(a < k) {
+            finalResult[c] = dumdum[a];
+            a++;
+            c++;
+        }
+
+        while(b < num_elements_to_scatter_or_gather) {
+            finalResult[c] = dummyA[b];
+            // printf("a: %d, b: %d, c: %d, result: %d \n", a, b, c, resultA[c]);
+            b++;
+            c++;
+        }
+        k += num_elements_to_scatter_or_gather;
+        for (int m = 0; m < k; m++) {
+            dumdum[m] = finalResult[m];
+        }
+    }
+
+    // MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &resultA[0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
+    print_arr(finalResult, SZ);
     //calculate time to milliseconds
     // auto t2 = chrono::steady_clock::now();
     // auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
@@ -112,6 +155,7 @@ void node(int process_rank, int num_processes)
     int num_elements_to_scatter_or_gather = SZ / num_processes;
     init(arr, num_elements_to_scatter_or_gather, false);
     init(resultA, num_elements_to_scatter_or_gather, false);
+    init(dummyA, num_elements_to_scatter_or_gather, false);
 
     MPI_Scatter(NULL, num_elements_to_scatter_or_gather, MPI_INT, &arr[0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -126,8 +170,14 @@ void node(int process_rank, int num_processes)
     clWaitForEvents(1, &event);
     clEnqueueReadBuffer(queue, bufResult, CL_TRUE, 0, num_elements_to_scatter_or_gather *sizeof(int), &resultA[0], 0, NULL, NULL);
     //End of OpenCL
-   
-    MPI_Gather(&resultA[0], num_elements_to_scatter_or_gather, MPI_INT, NULL, num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
+
+    for (int i = 0; i < num_elements_to_scatter_or_gather; i++) {
+        dummyA[i] = resultA[i];
+    }
+    MPI_Send(&dummyA[0], num_elements_to_scatter_or_gather, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
+    // MPI_Gather(&resultA[0], num_elements_to_scatter_or_gather, MPI_INT, NULL, num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
+    
     free_memory();
 }
 
