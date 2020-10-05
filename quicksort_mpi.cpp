@@ -49,9 +49,9 @@ void head(int num_processes)
     init(resultA, SZ, false);
 
     int dumdum[SZ];
-    // auto t1 = chrono::steady_clock::now();
-    cout << "array in the beginning is: ";
-    print_arr(arr, SZ);
+    auto t1 = chrono::steady_clock::now();
+    // cout << "array in the beginning is: ";
+    // print_arr(arr, SZ);
 
     int num_elements_to_scatter_or_gather = SZ / num_processes;
     init(dummyA, num_elements_to_scatter_or_gather, false);
@@ -102,15 +102,15 @@ void head(int num_processes)
     }
     
     // MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &arr[0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
-    cout << "the final result after sorting is: ";
-    print_arr(resultA, SZ);
+    // cout << "the final result after sorting is: ";
+    // print_arr(resultA, SZ);
 
     // //calculate time to milliseconds
-    // auto t2 = chrono::steady_clock::now();
-    // auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
-    // float a = d_nano;
-    // float d_milli = a/1000000L;
-    // cout << "time elapse: " << d_milli << "ms" << endl;
+    auto t2 = chrono::steady_clock::now();
+    auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
+    float a = d_nano;
+    float d_milli = a/1000000L;
+    cout << "time elapse: " << d_milli << "ms" << endl;
 
 
 }
@@ -141,7 +141,7 @@ void init(int * &arr, int size, bool initialise) {
     if(!initialise) return;
 
     for (int i = 0; i < SZ; i++) {
-        arr[i] = rand() % 20;
+        arr[i] = rand() % 100;
     }
 }
 
