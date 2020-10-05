@@ -18,7 +18,7 @@ using nano_s = chrono::nanoseconds;
 
 int SZ = 4;
 const int TS = 4;
-int * arr, *resultA, *dummyA, *finalResult;
+int * arr, *dummyA, *finalResult;
 
 void init(int * &arr, int size, bool initialise);
 void print_arr(int * arr, int size);
@@ -35,7 +35,7 @@ cl_command_queue queue;
 cl_event event = NULL;
 int err;
 
-cl_mem bufArr, bufResult;
+cl_mem bufArr;
 
 size_t local[1] = {(size_t)TS};
 size_t global[1] = {(size_t)SZ}; // number of rows and cols or basically the number of threads with indices i and j where i is the row and j is the col of the matric C
@@ -75,7 +75,6 @@ int main(int argc, char **argv)
 void head(int num_processes)
 {
     init(arr, SZ, true);
-    init(resultA, SZ, false);
     init(finalResult, SZ, false);
     int dumdum[SZ];
 
@@ -95,7 +94,7 @@ void head(int num_processes)
     copy_kernel_args(num_elements_to_scatter_or_gather, 0);
     clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global, local, 0, NULL, &event);
     clWaitForEvents(1, &event);
-    clEnqueueReadBuffer(queue, bufResult, CL_TRUE, 0, num_elements_to_scatter_or_gather *sizeof(int), &resultA[0], 0, NULL, NULL);
+    clEnqueueReadBuffer(queue, bufArr, CL_TRUE, 0, num_elements_to_scatter_or_gather *sizeof(int), &arr[0], 0, NULL, NULL);
     //end of OpenCL
 
     for (int j = 0; j < num_elements_to_scatter_or_gather; j++) {
@@ -154,7 +153,6 @@ void node(int process_rank, int num_processes)
 {
     int num_elements_to_scatter_or_gather = SZ / num_processes;
     init(arr, num_elements_to_scatter_or_gather, false);
-    init(resultA, num_elements_to_scatter_or_gather, false);
     init(dummyA, num_elements_to_scatter_or_gather, false);
 
     MPI_Scatter(NULL, num_elements_to_scatter_or_gather, MPI_INT, &arr[0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
@@ -168,16 +166,14 @@ void node(int process_rank, int num_processes)
     copy_kernel_args(num_elements_to_scatter_or_gather, process_rank);
     clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global, local, 0, NULL, &event);
     clWaitForEvents(1, &event);
-    clEnqueueReadBuffer(queue, bufResult, CL_TRUE, 0, num_elements_to_scatter_or_gather *sizeof(int), &resultA[0], 0, NULL, NULL);
+    clEnqueueReadBuffer(queue, bufArr, CL_TRUE, 0, num_elements_to_scatter_or_gather *sizeof(int), &arr[0], 0, NULL, NULL);
     //End of OpenCL
 
     for (int i = 0; i < num_elements_to_scatter_or_gather; i++) {
-        dummyA[i] = resultA[i];
+        dummyA[i] = arr[i];
     }
     MPI_Send(&dummyA[0], num_elements_to_scatter_or_gather, MPI_INT, 0, 0, MPI_COMM_WORLD);
 
-    // MPI_Gather(&resultA[0], num_elements_to_scatter_or_gather, MPI_INT, NULL, num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
-    
     free_memory();
 }
 
@@ -186,7 +182,6 @@ void free_memory()
 
     clReleaseKernel(kernel);
     clReleaseMemObject(bufArr);
-    clReleaseMemObject(bufResult);
 
     clReleaseCommandQueue(queue);
     clReleaseProgram(program);
@@ -201,7 +196,6 @@ void copy_kernel_args(int elements, int rank)
     clSetKernelArg(kernel, 2, sizeof(int), (void *)&SZ);
 
     clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&bufArr);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&bufResult);
     if (err < 0)
     {
         perror("Couldn't create a kernel argument");
@@ -213,12 +207,10 @@ void copy_kernel_args(int elements, int rank)
 void setup_kernel_memory(int elements)
 {
      //NOTE that we modified the bufA to only cover rows of A and C
-    bufArr = clCreateBuffer(context, CL_MEM_READ_ONLY, elements * sizeof(int), NULL, NULL);
-    bufResult = clCreateBuffer(context, CL_MEM_READ_WRITE, elements * sizeof(int), NULL, NULL);
+    bufArr = clCreateBuffer(context, CL_MEM_READ_WRITE, elements * sizeof(int), NULL, NULL);
 
     // Copy matrices to the GPU
     clEnqueueWriteBuffer(queue, bufArr, CL_TRUE, 0, elements * sizeof(int), &arr[0], 0, NULL, NULL);
-    clEnqueueWriteBuffer(queue, bufResult, CL_TRUE, 0, elements * sizeof(int), &resultA[0], 0, NULL, NULL);
 }
 
 void init(int *&arr, int size, bool initialise)

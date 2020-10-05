@@ -45,16 +45,12 @@ void quickSortIterative(__global int* arr, int l, int h)
 }
 
 __kernel void quicksorting(const int CHUNK, const int RANK, const int SZ,
-                      const __global int* arr,
-                      __global int* result) {
+                      __global int* arr) {
     
     // Thread identifiers
     const int globalposition = get_global_id(0);
 
     if (globalposition == 0) {
-        for (int i = 0; i < CHUNK; i++) {
-            result[i] = arr[i];
-        }
-        quickSortIterative(result, 0, CHUNK - 1);
+        quickSortIterative(arr, 0, CHUNK - 1);
     }
 }
