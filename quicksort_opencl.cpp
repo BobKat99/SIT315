@@ -78,8 +78,8 @@ void head(int num_processes)
     init(finalResult, SZ, false);
     int dumdum[SZ];
 
-    print_arr(arr, SZ);
-    // auto t1 = chrono::steady_clock::now();
+    // print_arr(arr, SZ);
+    auto t1 = chrono::steady_clock::now();
 
     int num_elements_to_scatter_or_gather = SZ / num_processes;
     
@@ -138,14 +138,14 @@ void head(int num_processes)
     }
 
     // MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather, MPI_INT, &resultA[0], num_elements_to_scatter_or_gather, MPI_INT, 0, MPI_COMM_WORLD);
-    print_arr(finalResult, SZ);
+    // print_arr(finalResult, SZ);
     //calculate time to milliseconds
-    // auto t2 = chrono::steady_clock::now();
-    // auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
-    // float a = d_nano;
-    // float d_milli = a/1000000L;
+    auto t2 = chrono::steady_clock::now();
+    auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
+    float a = d_nano;
+    float d_milli = a/1000000L;
 
-    // cout << "time elapse: " << d_milli << "ms" << endl;
+    cout << "time elapse: " << d_milli << "ms" << endl;
     free_memory();
 }
 
