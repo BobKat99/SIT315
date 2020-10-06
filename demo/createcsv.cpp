@@ -5,8 +5,8 @@
 
 using namespace std;
 
-#define NUMBER_HOUR 4
-#define NUMBER_SIGN 6
+#define NUMBER_HOUR 24
+#define NUMBER_SIGN 24
 #define MINUTE_MEA 5
 #define MINUTES_IN_HOUR 60
 

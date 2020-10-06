@@ -115,8 +115,8 @@ bool queue::isFull()
 	return (size() == capacity);
 }
 
-#define NUMBER_HOUR 4
-#define NUMBER_SIGN 6
+#define NUMBER_HOUR 24
+#define NUMBER_SIGN 24
 #define MINUTE_MEA 5
 #define MINUTES_IN_HOUR 60
 
@@ -187,7 +187,7 @@ void head(int num_processes)
     MyReadFile.close();
 
     // begin produce and consume 
-    queue que(4);
+    queue que(8);
     int hours_inside = NUMBER_HOUR / num_processes;
     init(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
     int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
@@ -237,11 +237,9 @@ void head(int num_processes)
     // }
 
     // bool check = true;
-    //         while(check) {
-    //             check = qAccessCon(que, resultMatrix, hours_inside);
-    //         };
-
-    // print(resultMatrix, hours_inside, NUMBER_SIGN);
+    // while(check) {
+    //     check = qAccessCon(que, resultMatrix, hours_inside);
+    // };
 
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &resultMatrix[0][0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
 
@@ -250,8 +248,6 @@ void head(int num_processes)
 void node(int process_rank, int num_processes)
 {
     // cout << "hello at node " << process_rank << endl;
-    // note using pragma for for the sum of prod and consu, then print inside func to check
-
     int num_data_local = measures / num_processes;
     int sizeChar;
     int maxCharInOneLine = 50;
@@ -265,10 +261,12 @@ void node(int process_rank, int num_processes)
     string work_str(strA);
 
     // begin produce and consume 
-    queue que(5);
+    queue que(8);
     int hours_inside = NUMBER_HOUR / num_processes;
     init(resultMatrix, hours_inside, NUMBER_SIGN);
     int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
+
+    // cout << work_str << endl;
 
     stringstream str_strm(work_str);
 
@@ -313,15 +311,11 @@ void node(int process_rank, int num_processes)
     //     getline(str_strm, record);
     //     producer(record, que);
     // }
-    // // bug is here
+
     // bool check = true;
     // while(check) {
     //     check = qAccessCon(que, resultMatrix, hours_inside);
     // };
-
-    // print(resultMatrix, hours_inside, NUMBER_SIGN);
-
-    // cout << work_str;
 
     MPI_Gather(&resultMatrix[0][0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
 }
