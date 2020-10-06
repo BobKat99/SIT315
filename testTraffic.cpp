@@ -137,6 +137,10 @@ void print( int ** matrix, int rows, int cols);
 void producer(string myText, queue &que);
 bool qAccessCon(queue &que, int ** &matrix, int row_per);
 
+void printMatrix (resultSum matrix[NUMBER_HOUR][NUMBER_SIGN]);
+void sorting(resultSum matrix[NUMBER_HOUR][NUMBER_SIGN]);
+void printResult (resultSum matrix[NUMBER_HOUR][NUMBER_SIGN], int hour, int numberMax);
+
 void head(int num_processes);
 void node(int process_rank, int num_processes);
 
@@ -164,6 +168,7 @@ int main(int argc, char** argv) {
 void head(int num_processes)
 {
     // extract data and spread
+    auto t1 = chrono::steady_clock::now();
     ifstream MyReadFile("data.csv");
 
     int num_data_local = measures / num_processes;
@@ -187,7 +192,7 @@ void head(int num_processes)
     MyReadFile.close();
 
     // begin produce and consume 
-    queue que(8);
+    queue que(8); // the queue is only 8 for litmit buffer
     int hours_inside = NUMBER_HOUR / num_processes;
     init(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
     int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
@@ -196,6 +201,7 @@ void head(int num_processes)
 
     int total_thread = NumCon + NumProd;
 
+    // set up multi threading
     omp_init_lock(&lockProd);
     omp_init_lock(&lockCon);
     omp_set_num_threads(total_thread);
@@ -203,8 +209,10 @@ void head(int num_processes)
     int count_prod = 0;
     int count_con = 0; 
 
+    // multi threading with each thread is a consumer or producer
     #pragma omp parallel for 
     for(int i = 0; i < total_thread ; i++) {
+        // cout << "[processing at thread " << i << "]" << endl;
         if (i < NumProd) {
             while (count_prod < num_data_local) {
                 omp_set_lock(&lockProd);
@@ -230,6 +238,7 @@ void head(int num_processes)
     omp_destroy_lock(&lockProd);
     omp_destroy_lock(&lockCon);
 
+    // sequential code
     // for (int i = 0; i < num_data_local; i++) {
     //     string record;
     //     getline(str_strm, record);
@@ -242,8 +251,36 @@ void head(int num_processes)
     // };
 
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &resultMatrix[0][0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
+    auto t2 = chrono::steady_clock::now();
 
-    print(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
+    // calculate the time to check the traffic
+    auto d_nano = chrono::duration_cast<nano_s>(t2-t1).count();
+    float a = d_nano;
+    float d_milli = a/1000000L;
+    cout << "time elapse: " << d_milli << "ms" << endl;
+
+    // sorting the result to find the less crowded signals
+    resultSum resultFinal[NUMBER_HOUR][NUMBER_SIGN];
+
+    for(int i = 0 ; i < NUMBER_HOUR; i++) {
+        for(int j = 0 ; j < NUMBER_SIGN; j++) {
+            resultSum conVal{j, resultMatrix[i][j]};
+            resultFinal[i][j] = conVal;
+        }
+    }
+
+    sorting(resultFinal);
+
+    // printMatrix(resultFinal);
+
+    int inputH, inputM;
+    cout <<"Enter the hour to display: ";
+    cin >> inputH;
+    cout <<"Enter the max number of most quiet signals to display: ";
+    cin >> inputM;
+    printResult(resultFinal, inputH, inputM);
+
+    // print(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
 }
 void node(int process_rank, int num_processes)
 {
@@ -417,4 +454,50 @@ void print(int ** A, int rows, int cols) {
         printf("\n"); //at the end of the row, print a new line
     }
     printf("----------------------------\n");
+}
+
+void printResult (resultSum matrix[NUMBER_HOUR][NUMBER_SIGN], int hour, int numberMax) {
+    if (numberMax > NUMBER_SIGN || hour > NUMBER_HOUR || matrix[hour][0].id == -1) {
+        cout << "error" << endl;
+    } else {
+        cout << "Hour of [" << hour << "]: "; 
+        for (int i = 0; i < numberMax; i++) {
+            cout << "id-" << matrix[hour][i].id << " "; 
+        }
+        cout << endl;
+    }
+}
+
+void swap(resultSum matrix[NUMBER_HOUR][NUMBER_SIGN], int i1, int i2, int j1, int j2) {
+    resultSum value = matrix[i1][j1];
+    matrix[i1][j1] = matrix[i2][j2];
+    matrix[i2][j2] = value;
+}
+
+void sorting(resultSum matrix[NUMBER_HOUR][NUMBER_SIGN]) {
+    for (int i = 0; i < NUMBER_HOUR; i++) {
+        for (int j = 0; j < NUMBER_SIGN; j++) {
+            if (matrix[i][j].id == -1) {
+                break;
+            }
+            for (int g = 0; g < NUMBER_SIGN - j - 1; g++) {
+                if (matrix[i][g].sum > matrix[i][g+1].sum) {
+                    swap(matrix, i, i, g, g+1);
+                }
+            }
+        }
+    }
+}
+
+void printMatrix (resultSum matrix[NUMBER_HOUR][NUMBER_SIGN]) {
+    for (int i = 0; i < NUMBER_HOUR; i++) {
+        cout << "Hour [" << i << "]: ";
+        for (int j = 0; j < NUMBER_SIGN; j++) {
+            if (matrix[i][j].id == -1) {
+                break;
+            }
+            cout << "ID" << matrix[i][j].id << ": " << matrix[i][j].sum << ", ";
+        }
+        cout << endl;
+    }
 }
