@@ -131,7 +131,7 @@ int ** resultMatrix;
 void init(int ** &matrix, int rows, int cols);
 void print( int ** matrix, int rows, int cols);
 void producer(string myText, queue &que);
-bool qAccessCon(queue &que, int ** &matrix);
+bool qAccessCon(queue &que, int ** &matrix, int row_per);
 
 void head(int num_processes);
 void node(int process_rank, int num_processes);
@@ -196,20 +196,18 @@ void head(int num_processes)
     }
     bool check = true;
     while(check) {
-        check = qAccessCon(que, resultMatrix);
+        check = qAccessCon(que, resultMatrix, hours_inside);
     };
 
     // print(resultMatrix, hours_inside, NUMBER_SIGN);
 
-    // MPI_Scatter(&arrStr[0], num_elements_to_scatter_or_gather ,  MPI_CHAR , &arrStr , 0, MPI_INT, 0 , MPI_COMM_WORLD);
-    
     MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &resultMatrix[0][0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
 
     print(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
 }
 void node(int process_rank, int num_processes)
 {
-    cout << "hello at node " << process_rank << endl;
+    // cout << "hello at node " << process_rank << endl;
     // note using pragma for for the sum of prod and consu, then print inside func to check
 
     int num_data_local = measures / num_processes;
@@ -237,16 +235,16 @@ void node(int process_rank, int num_processes)
         producer(record, que);
     }
     // bug is here
-    // bool check = true;
-    // while(check) {
-    //     check = qAccessCon(que, resultMatrix);
-    // };
+    bool check = true;
+    while(check) {
+        check = qAccessCon(que, resultMatrix, hours_inside);
+    };
 
-    for(long i = 0 ; i < hours_inside; i++) {
-        for(long j = 0 ; j < NUMBER_SIGN; j++) {
-            resultMatrix[i][j] = 2;
-        }
-    }
+    // for(long i = 0 ; i < hours_inside; i++) {
+    //     for(long j = 0 ; j < NUMBER_SIGN; j++) {
+    //         resultMatrix[i][j] = 2;
+    //     }
+    // }
 
     // print(resultMatrix, hours_inside, NUMBER_SIGN);
 
@@ -264,11 +262,11 @@ bool qAccessProd(trafficData data, queue &que) {
     }
 }
 
-bool qAccessCon(queue &que, int ** &matrix) {
+bool qAccessCon(queue &que, int ** &matrix, int row_per) {
     if (!que.isEmpty()) {
         trafficData theData = que.peek();
-        matrix[theData.hours][theData.id] += theData.cars;
-        // printf("just add hour %d and id %d\n",theData.hours, theData.id);
+        int row = theData.hours%row_per;
+        matrix[row][theData.id] += theData.cars;
         que.dequeue();
 
         return true;
