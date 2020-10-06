@@ -1,13 +1,20 @@
+#include <iostream>
+#include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <thread>
+#include <mpi.h>
+#include <chrono>
 #include <string>
 #include <sstream>
-#include <iostream>
 #include <fstream>
-#include <cstdlib>
-#include <omp.h>
-#include <chrono>
 
 using namespace std;
 using nano_s = chrono::nanoseconds;
+
+
 
 // the data in general
 struct trafficData {
@@ -16,7 +23,7 @@ struct trafficData {
 
 // the data after processing to create the sum
 struct resultSum {
-    int id=-1, sum;
+    int id, sum;
 };
 
 // the below is for creating a type of queue corresponding witht the customized dataType
@@ -107,47 +114,173 @@ bool queue::isFull()
 	return (size() == capacity);
 }
 
-// a global elements
-#define HOURS_OF_DAY 24
-#define NUMBER_OF_SIGN 6
+#define NUMBER_HOUR 4
+#define NUMBER_SIGN 6
+#define MINUTE_MEA 5
+#define MINUTES_IN_HOUR 60
 
-queue que(8);
-resultSum matrixResult[HOURS_OF_DAY][NUMBER_OF_SIGN];
-bool productionDone = false;
+int measures = NUMBER_HOUR * NUMBER_SIGN * (MINUTES_IN_HOUR / MINUTE_MEA);
 
-bool qAccess(bool isProducer, trafficData data) {
-    if(isProducer) {
-        if (!que.isFull()) {
-            que.enqueue(data);
-            return true;
-        } else {
-            return false;
+// mpicxx ./mpi_only_matrix_multi.cpp -o mpionly.o
+// mpirun -np 4 --hostfile ./cluster ./mpionly.o 1000
+
+int NumProd = 1;
+int NumCon = 1;
+int ** resultMatrix;
+
+void init(int ** &matrix, int rows, int cols);
+void print( int ** matrix, int rows, int cols);
+void producer(string myText, queue &que);
+bool qAccessCon(queue &que, int ** &matrix);
+
+void head(int num_processes);
+void node(int process_rank, int num_processes);
+
+int main(int argc, char** argv) {
+    if(argc > 1) {
+        NumProd = atoi(argv[1]);
+        NumCon = atoi(argv[2]);
+    }
+    MPI_Init(NULL, NULL);
+
+    int num_processes;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
+
+    int process_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
+
+    if(process_rank == 0) //head
+        head(num_processes);
+    else
+        node(process_rank, num_processes);
+
+    MPI_Finalize();
+}
+
+void head(int num_processes)
+{
+    // extract data and spread
+    ifstream MyReadFile("data.csv");
+
+    int num_data_local = measures / num_processes;
+
+    string work_str;
+
+    for (int i = 0; i < num_processes; i++){
+        string str = "";
+        for(int j = 0; j < num_data_local; j++) {
+            string inside_str;
+            getline(MyReadFile, inside_str);
+            str += inside_str + "\n";
         }
+        if(i == 0){
+            work_str = str;
+        } else {
+            MPI_Send(str.c_str(), str.length(), MPI_CHAR, i, 0, MPI_COMM_WORLD);
+        }
+    }
+    
+    MyReadFile.close();
+
+    // begin produce and consume 
+    queue que(num_data_local);
+    int hours_inside = NUMBER_HOUR / num_processes;
+    init(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
+    int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
+
+    stringstream str_strm(work_str);
+    for (int i = 0; i < num_data_local; i++) {
+        string record;
+        getline(str_strm, record);
+        producer(record, que);
+    }
+    bool check = true;
+    while(check) {
+        check = qAccessCon(que, resultMatrix);
+    };
+
+    // print(resultMatrix, hours_inside, NUMBER_SIGN);
+
+    // MPI_Scatter(&arrStr[0], num_elements_to_scatter_or_gather ,  MPI_CHAR , &arrStr , 0, MPI_INT, 0 , MPI_COMM_WORLD);
+    
+    MPI_Gather(MPI_IN_PLACE, num_elements_to_scatter_or_gather , MPI_INT, &resultMatrix[0][0] , num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
+
+    print(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
+}
+void node(int process_rank, int num_processes)
+{
+    cout << "hello at node " << process_rank << endl;
+    // note using pragma for for the sum of prod and consu, then print inside func to check
+
+    int num_data_local = measures / num_processes;
+    int sizeChar;
+    int maxCharInOneLine = 50;
+    sizeChar = maxCharInOneLine * num_data_local;
+
+    char * strA;
+    strA = new char [sizeChar];
+
+    MPI_Recv(&strA[0], sizeChar, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    string work_str(strA);
+
+    // begin produce and consume 
+    queue que(num_data_local);
+    int hours_inside = NUMBER_HOUR / num_processes;
+    init(resultMatrix, hours_inside, NUMBER_SIGN);
+    int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
+
+    stringstream str_strm(work_str);
+    for (int i = 0; i < num_data_local; i++) {
+        string record;
+        getline(str_strm, record);
+        producer(record, que);
+    }
+    // bug is here
+    // bool check = true;
+    // while(check) {
+    //     check = qAccessCon(que, resultMatrix);
+    // };
+
+    for(long i = 0 ; i < hours_inside; i++) {
+        for(long j = 0 ; j < NUMBER_SIGN; j++) {
+            resultMatrix[i][j] = 2;
+        }
+    }
+
+    // print(resultMatrix, hours_inside, NUMBER_SIGN);
+
+    // cout << work_str;
+
+    MPI_Gather(&resultMatrix[0][0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
+}
+
+bool qAccessProd(trafficData data, queue &que) {
+    if (!que.isFull()) {
+        que.enqueue(data);
+        return true;
     } else {
-        if (!que.isEmpty()) {
-            trafficData theData = que.peek();
-            if (matrixResult[theData.hours][theData.id].sum == 0) {
-                resultSum finalResult{theData.id, theData.cars};
-                matrixResult[theData.hours][theData.id] = finalResult;
-            } else {
-                matrixResult[theData.hours][theData.id].sum += theData.cars;
-            }
-            que.dequeue();
-
-            return true;
-        } else {
-            return false;
-        }
+        return false;
     }
 }
 
-void producer() {
-    //start reading file
-    ifstream MyReadFile("data.csv");
-    string myText;
-    // Use a while loop together with the getline() function to read the file line by line
-    while (getline (MyReadFile, myText)) {
+bool qAccessCon(queue &que, int ** &matrix) {
+    if (!que.isEmpty()) {
+        trafficData theData = que.peek();
+        matrix[theData.hours][theData.id] += theData.cars;
+        // printf("just add hour %d and id %d\n",theData.hours, theData.id);
+        que.dequeue();
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void producer(string myText, queue &que) {
         //make a stringstream of the result which the rows inside the dataset
+        //myText here is the line of data
+        // cout << myText;
         stringstream str_strm(myText);
         trafficData data;
         string tmp;
@@ -189,70 +322,32 @@ void producer() {
             }   
             count++;
         }
-        bool check = false;
-        while(!check) {
-            check = qAccess(true, data);
-        }
+        // printf(": hours %d, id %d, and cars %d\n", data.hours, data.id, data.cars);
+        qAccessProd(data, que);
+        // que.enqueue(data);
+}
+
+void init(int ** &A, int rows, int cols) {
+    A = (int **) malloc(sizeof(int*) * rows * cols);  // number of rows * size of int* address in the memory
+    int* tmp = (int *) malloc(sizeof(int) * cols * rows); 
+
+    for(int i = 0 ; i < cols ; i++) {
+        A[i] = &tmp[i * cols];
     }
-    // Close the file
-    MyReadFile.close();
-}
 
-void consumer() {
-    while(!productionDone) {
-        while(!que.isEmpty()) {
-            qAccess(false, trafficData{0,0});
-        }
-    }
-}
-
-void swap(resultSum matrix[HOURS_OF_DAY][NUMBER_OF_SIGN], int i1, int i2, int j1, int j2) {
-    resultSum value = matrix[i1][j1];
-    matrix[i1][j1] = matrix[i2][j2];
-    matrix[i2][j2] = value;
-}
-
-void sorting(resultSum matrix[HOURS_OF_DAY][NUMBER_OF_SIGN]) {
-    for (int i = 0; i < HOURS_OF_DAY; i++) {
-        for (int j = 0; j < NUMBER_OF_SIGN; j++) {
-            if (matrix[i][j].id == -1) {
-                break;
-            }
-            for (int g = 0; g < NUMBER_OF_SIGN - j - 1; g++) {
-                if (matrix[i][g].sum > matrix[i][g+1].sum) {
-                    swap(matrix, i, i, g, g+1);
-                }
-            }
+    for(long i = 0 ; i < rows; i++) {
+        for(long j = 0 ; j < cols; j++) {
+            A[i][j] = 0;
         }
     }
 }
 
-void printMatrix (resultSum matrix[HOURS_OF_DAY][NUMBER_OF_SIGN]) {
-    for (int i = 0; i < HOURS_OF_DAY; i++) {
-        cout << "Hour [" << i << "]: ";
-        for (int j = 0; j < NUMBER_OF_SIGN; j++) {
-            if (matrix[i][j].id == -1) {
-                break;
-            }
-            cout << "ID" << matrix[i][j].id << ": " << matrix[i][j].sum << ", ";
+void print(int ** A, int rows, int cols) {
+  for(long i = 0 ; i < rows; i++) { //rows
+        for(long j = 0 ; j < cols; j++) {  //cols
+            printf("%d ", A[i][j]); // print the cell value
         }
-        cout << endl;
+        printf("\n"); //at the end of the row, print a new line
     }
-}
-
-void printResult (resultSum matrix[HOURS_OF_DAY][NUMBER_OF_SIGN], int hour, int numberMax) {
-    if (numberMax > NUMBER_OF_SIGN || hour > HOURS_OF_DAY || matrix[hour][0].id == -1) {
-        cout << "error" << endl;
-    } else {
-        cout << "Hour of [" << hour << "]: "; 
-        for (int i = 0; i < numberMax; i++) {
-            cout << "id-" << matrix[hour][i].id << " "; 
-        }
-        cout << endl;
-    }
-}
-
-int main() {
-    producer();
-    return 0;
+    printf("----------------------------\n");
 }

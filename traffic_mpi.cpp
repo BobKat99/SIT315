@@ -185,7 +185,7 @@ void head(int num_processes)
     // begin produce and consume 
     queue que(num_data_local);
     int hours_inside = NUMBER_HOUR / num_processes;
-    init(resultMatrix, hours_inside, NUMBER_SIGN);
+    init(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
 
     stringstream str_strm(work_str);
     for (int i = 0; i < num_data_local; i++) {
@@ -224,8 +224,7 @@ void node(int process_rank, int num_processes)
     // begin produce and consume 
     queue que(num_data_local);
     int hours_inside = NUMBER_HOUR / num_processes;
-    resultSum ** testMatrix;
-    init(testMatrix, hours_inside, NUMBER_SIGN);
+    init(resultMatrix, hours_inside, NUMBER_SIGN);
 
     stringstream str_strm(work_str);
     for (int i = 0; i < num_data_local; i++) {
@@ -234,17 +233,15 @@ void node(int process_rank, int num_processes)
         producer(record, que);
     }
     bool check = true;
-    int countla = 0;
     while(check) {
-        check = qAccessCon(que, testMatrix);
-        countla++;
+        check = qAccessCon(que, resultMatrix);
     };
 
-    print(testMatrix, hours_inside, NUMBER_SIGN);
+    print(resultMatrix, hours_inside, NUMBER_SIGN);
 
     // cout << work_str;
 
-    // MPI_Gather(&C[0][0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
+    // MPI_Gather(&resultMatrix[0][0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
 }
 
 bool qAccessProd(trafficData data, queue &que) {
@@ -265,6 +262,7 @@ bool qAccessCon(queue &que, resultSum ** &matrix) {
         } else {
             matrix[theData.hours][theData.id].sum += theData.cars;
         }
+        // printf("just add hour %d and id %d\n",theData.hours, theData.id);
         que.dequeue();
 
         return true;
