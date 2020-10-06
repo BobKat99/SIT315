@@ -10,6 +10,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <omp.h>
 
 using namespace std;
 using nano_s = chrono::nanoseconds;
@@ -128,6 +129,9 @@ int NumProd = 1;
 int NumCon = 1;
 int ** resultMatrix;
 
+omp_lock_t lockProd;
+omp_lock_t lockCon;
+
 void init(int ** &matrix, int rows, int cols);
 void print( int ** matrix, int rows, int cols);
 void producer(string myText, queue &que);
@@ -183,21 +187,59 @@ void head(int num_processes)
     MyReadFile.close();
 
     // begin produce and consume 
-    queue que(num_data_local);
+    queue que(4);
     int hours_inside = NUMBER_HOUR / num_processes;
     init(resultMatrix, NUMBER_HOUR, NUMBER_SIGN);
     int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
 
     stringstream str_strm(work_str);
-    for (int i = 0; i < num_data_local; i++) {
-        string record;
-        getline(str_strm, record);
-        producer(record, que);
+
+    int total_thread = NumCon + NumProd;
+
+    omp_init_lock(&lockProd);
+    omp_init_lock(&lockCon);
+    omp_set_num_threads(total_thread);
+
+    int count_prod = 0;
+    int count_con = 0; 
+
+    #pragma omp parallel for 
+    for(int i = 0; i < total_thread ; i++) {
+        if (i < NumProd) {
+            while (count_prod < num_data_local) {
+                omp_set_lock(&lockProd);
+                string record;
+                getline(str_strm, record);
+                producer(record, que);
+                count_prod++;
+                omp_unset_lock(&lockProd);
+            }
+        } else {
+            while(count_con < num_data_local) {
+                omp_set_lock(&lockCon);
+                bool check = false;
+                while(!check) {
+                    check = qAccessCon(que, resultMatrix, hours_inside);
+                };
+                count_con++;
+                omp_unset_lock(&lockCon);
+            }
+        }
     }
-    bool check = true;
-    while(check) {
-        check = qAccessCon(que, resultMatrix, hours_inside);
-    };
+
+    omp_destroy_lock(&lockProd);
+    omp_destroy_lock(&lockCon);
+
+    // for (int i = 0; i < num_data_local; i++) {
+    //     string record;
+    //     getline(str_strm, record);
+    //     producer(record, que);
+    // }
+
+    // bool check = true;
+    //         while(check) {
+    //             check = qAccessCon(que, resultMatrix, hours_inside);
+    //         };
 
     // print(resultMatrix, hours_inside, NUMBER_SIGN);
 
@@ -223,28 +265,59 @@ void node(int process_rank, int num_processes)
     string work_str(strA);
 
     // begin produce and consume 
-    queue que(num_data_local);
+    queue que(5);
     int hours_inside = NUMBER_HOUR / num_processes;
     init(resultMatrix, hours_inside, NUMBER_SIGN);
     int num_elements_to_scatter_or_gather = hours_inside*NUMBER_SIGN;
 
     stringstream str_strm(work_str);
-    for (int i = 0; i < num_data_local; i++) {
-        string record;
-        getline(str_strm, record);
-        producer(record, que);
-    }
-    // bug is here
-    bool check = true;
-    while(check) {
-        check = qAccessCon(que, resultMatrix, hours_inside);
-    };
 
-    // for(long i = 0 ; i < hours_inside; i++) {
-    //     for(long j = 0 ; j < NUMBER_SIGN; j++) {
-    //         resultMatrix[i][j] = 2;
-    //     }
+    int total_thread = NumCon + NumProd;
+
+    omp_init_lock(&lockProd);
+    omp_init_lock(&lockCon);
+    omp_set_num_threads(total_thread);
+
+    int count_prod = 0;
+    int count_con = 0; 
+
+    #pragma omp parallel for 
+    for(int i = 0; i < total_thread ; i++) {
+        if (i < NumProd) {
+            while (count_prod < num_data_local) {
+                omp_set_lock(&lockProd);
+                string record;
+                getline(str_strm, record);
+                producer(record, que);
+                count_prod++;
+                omp_unset_lock(&lockProd);
+            }
+        } else {
+            while(count_con < num_data_local) {
+                omp_set_lock(&lockCon);
+                bool check = false;
+                while(!check) {
+                    check = qAccessCon(que, resultMatrix, hours_inside);
+                };
+                count_con++;
+                omp_unset_lock(&lockCon);
+            }
+        }
+    }
+
+    omp_destroy_lock(&lockProd);
+    omp_destroy_lock(&lockCon);
+
+    // for (int i = 0; i < num_data_local; i++) {
+    //     string record;
+    //     getline(str_strm, record);
+    //     producer(record, que);
     // }
+    // // bug is here
+    // bool check = true;
+    // while(check) {
+    //     check = qAccessCon(que, resultMatrix, hours_inside);
+    // };
 
     // print(resultMatrix, hours_inside, NUMBER_SIGN);
 
@@ -321,8 +394,10 @@ void producer(string myText, queue &que) {
             count++;
         }
         // printf(": hours %d, id %d, and cars %d\n", data.hours, data.id, data.cars);
-        qAccessProd(data, que);
-        // que.enqueue(data);
+        bool check = false;
+        while(!check) {
+            check = qAccessProd(data, que);
+        };
 }
 
 void init(int ** &A, int rows, int cols) {
