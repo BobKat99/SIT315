@@ -14,6 +14,8 @@
 using namespace std;
 using nano_s = chrono::nanoseconds;
 
+
+
 // the data in general
 struct trafficData {
     int hours, minute, id, cars;
@@ -21,7 +23,7 @@ struct trafficData {
 
 // the data after processing to create the sum
 struct resultSum {
-    int id=-1, sum;
+    int id, sum;
 };
 
 // the below is for creating a type of queue corresponding witht the customized dataType
@@ -124,12 +126,13 @@ int measures = NUMBER_HOUR * NUMBER_SIGN * (MINUTES_IN_HOUR / MINUTE_MEA);
 
 int NumProd = 1;
 int NumCon = 1;
-int **A;
+resultSum ** resultMatrix;
 
-void init(int** &matrix, int rows, int cols, bool initialise);
-void print( int** matrix, int rows, int cols);
+void init(resultSum ** &matrix, int rows, int cols);
+void print( resultSum ** matrix, int rows, int cols);
 void producer(string myText, queue &que);
-void consumer();
+bool qAccessCon(queue &que, resultSum ** &matrix);
+
 void head(int num_processes);
 void node(int process_rank, int num_processes);
 
@@ -156,6 +159,7 @@ int main(int argc, char** argv) {
 
 void head(int num_processes)
 {
+    // extract data and spread
     ifstream MyReadFile("data.csv");
 
     int num_data_local = measures / num_processes;
@@ -176,17 +180,25 @@ void head(int num_processes)
         }
     }
     
-    queue que(100);
-    
     MyReadFile.close();
+
+    // begin produce and consume 
+    queue que(num_data_local);
+    int hours_inside = NUMBER_HOUR / num_processes;
+    init(resultMatrix, hours_inside, NUMBER_SIGN);
+
     stringstream str_strm(work_str);
     for (int i = 0; i < num_data_local; i++) {
         string record;
         getline(str_strm, record);
         producer(record, que);
     }
-    
-    consumer(que, matrixResult);
+    bool check = true;
+    while(check) {
+        check = qAccessCon(que, resultMatrix);
+    };
+
+    print(resultMatrix, hours_inside, NUMBER_SIGN);
 
     // MPI_Scatter(&arrStr[0], num_elements_to_scatter_or_gather ,  MPI_CHAR , &arrStr , 0, MPI_INT, 0 , MPI_COMM_WORLD);
     
@@ -194,6 +206,7 @@ void head(int num_processes)
 }
 void node(int process_rank, int num_processes)
 {
+    cout << "hello at node " << process_rank << endl;
     // note using pragma for for the sum of prod and consu, then print inside func to check
 
     int num_data_local = measures / num_processes;
@@ -208,70 +221,62 @@ void node(int process_rank, int num_processes)
 
     string work_str(strA);
 
+    // begin produce and consume 
+    queue que(num_data_local);
+    int hours_inside = NUMBER_HOUR / num_processes;
+    resultSum ** testMatrix;
+    init(testMatrix, hours_inside, NUMBER_SIGN);
+
+    stringstream str_strm(work_str);
+    for (int i = 0; i < num_data_local; i++) {
+        string record;
+        getline(str_strm, record);
+        producer(record, que);
+    }
+    bool check = true;
+    int countla = 0;
+    while(check) {
+        check = qAccessCon(que, testMatrix);
+        countla++;
+    };
+
+    print(testMatrix, hours_inside, NUMBER_SIGN);
+
     // cout << work_str;
 
     // MPI_Gather(&C[0][0], num_elements_to_scatter_or_gather , MPI_INT, NULL, num_elements_to_scatter_or_gather , MPI_INT, 0 , MPI_COMM_WORLD);
 }
 
-
-
-void init(int** &A, int rows, int cols, bool initialise) {
-    A = (int **) malloc(sizeof(int*) * rows * cols);  // number of rows * size of int* address in the memory
-    int* tmp = (int *) malloc(sizeof(int) * cols * rows); 
-
-    for(int i = 0 ; i < 100 ; i++) {
-        A[i] = &tmp[i * cols];
-    }
-  
-
-    if(!initialise) return;
-
-    for(long i = 0 ; i < rows; i++) {
-        for(long j = 0 ; j < cols; j++) {
-            A[i][j] = rand() % 100; // any number less than 100
-        }
-    }
-}
-
-void print( int** A, int rows, int cols) {
-  for(long i = 0 ; i < rows; i++) { //rows
-        for(long j = 0 ; j < cols; j++) {  //cols
-            printf("%d ",  A[i][j]); // print the cell value
-        }
-        printf("\n"); //at the end of the row, print a new line
-    }
-    printf("----------------------------\n");
-}
-
-bool qAccess(bool isProducer, trafficData data) {
-    if(isProducer) {
-        if (!que.isFull()) {
-            que.enqueue(data);
-            return true;
-        } else {
-            return false;
-        }
+bool qAccessProd(trafficData data, queue &que) {
+    if (!que.isFull()) {
+        que.enqueue(data);
+        return true;
     } else {
-        if (!que.isEmpty()) {
-            trafficData theData = que.peek();
-            if (matrixResult[theData.hours][theData.id].sum == 0) {
-                resultSum finalResult{theData.id, theData.cars};
-                matrixResult[theData.hours][theData.id] = finalResult;
-            } else {
-                matrixResult[theData.hours][theData.id].sum += theData.cars;
-            }
-            que.dequeue();
+        return false;
+    }
+}
 
-            return true;
+bool qAccessCon(queue &que, resultSum ** &matrix) {
+    if (!que.isEmpty()) {
+        trafficData theData = que.peek();
+        if (matrix[theData.hours][theData.id].sum == 0) {
+            resultSum finalResult{theData.id, theData.cars};
+            matrix[theData.hours][theData.id] = finalResult;
         } else {
-            return false;
+            matrix[theData.hours][theData.id].sum += theData.cars;
         }
+        que.dequeue();
+
+        return true;
+    } else {
+        return false;
     }
 }
 
 void producer(string myText, queue &que) {
         //make a stringstream of the result which the rows inside the dataset
-//myText here is the line of data
+        //myText here is the line of data
+        // cout << myText;
         stringstream str_strm(myText);
         trafficData data;
         string tmp;
@@ -313,34 +318,33 @@ void producer(string myText, queue &que) {
             }   
             count++;
         }
-        bool check = false;
-        while(!check) {
-            check = qAccess(true, data);
-        }
+        // printf(": hours %d, id %d, and cars %d\n", data.hours, data.id, data.cars);
+        qAccessProd(data, que);
+        // que.enqueue(data);
 }
 
-
-void consumer(queue que, resultSum matrix[10][10]) {
-    while(!productionDone) {
-        while(!que.isEmpty()) {
-            qAccess(false, trafficData{0,0});
-        }
-    }
-}
-
-void init(resultSum** &A, int rows, int cols) {
+void init(resultSum ** &A, int rows, int cols) {
     A = (resultSum **) malloc(sizeof(resultSum*) * rows * cols);  // number of rows * size of int* address in the memory
     resultSum* tmp = (resultSum *) malloc(sizeof(resultSum) * cols * rows); 
 
     for(int i = 0 ; i < cols ; i++) {
         A[i] = &tmp[i * cols];
     }
+
+    resultSum dum;
+    dum.id = -1;
+    dum.sum = 0;
+    for(long i = 0 ; i < rows; i++) {
+        for(long j = 0 ; j < cols; j++) {
+            A[i][j] = dum;
+        }
+    }
 }
 
-void print( resultSum** A, int rows, int cols) {
+void print(resultSum** A, int rows, int cols) {
   for(long i = 0 ; i < rows; i++) { //rows
         for(long j = 0 ; j < cols; j++) {  //cols
-            printf("%d ",  A[i][j].id); // print the cell value
+            printf("id%d:%d ",  A[i][j].id, A[i][j].sum); // print the cell value
         }
         printf("\n"); //at the end of the row, print a new line
     }
