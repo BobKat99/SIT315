@@ -15,7 +15,8 @@
 using namespace std;
 using nano_s = chrono::nanoseconds;
 
-
+// mpicxx ./testTraffic.cpp -o traffic.o -fopenmp
+// mpirun -np 4 --hostfile ./cluster ./traffic.o 2 2
 
 // the data in general
 struct trafficData {
@@ -273,10 +274,11 @@ void head(int num_processes)
 
     // printMatrix(resultFinal);
 
+    // find the highest records
     int inputH, inputM;
     cout <<"Enter the hour to display: ";
     cin >> inputH;
-    cout <<"Enter the max number of most quiet signals to display: ";
+    cout <<"Enter the number of highest records display: ";
     cin >> inputM;
     printResult(resultFinal, inputH, inputM);
 
@@ -456,12 +458,13 @@ void print(int ** A, int rows, int cols) {
     printf("----------------------------\n");
 }
 
+// print the highest records
 void printResult (resultSum matrix[NUMBER_HOUR][NUMBER_SIGN], int hour, int numberMax) {
     if (numberMax > NUMBER_SIGN || hour > NUMBER_HOUR || matrix[hour][0].id == -1) {
         cout << "error" << endl;
     } else {
         cout << "Hour of [" << hour << "]: "; 
-        for (int i = 0; i < numberMax; i++) {
+        for (int i = (NUMBER_SIGN - 1); i > (NUMBER_SIGN - numberMax - 1); i--) {
             cout << "id-" << matrix[hour][i].id << " "; 
         }
         cout << endl;
