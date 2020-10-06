@@ -327,3 +327,22 @@ void consumer(queue que, resultSum matrix[10][10]) {
         }
     }
 }
+
+void init(resultSum** &A, int rows, int cols) {
+    A = (resultSum **) malloc(sizeof(resultSum*) * rows * cols);  // number of rows * size of int* address in the memory
+    resultSum* tmp = (resultSum *) malloc(sizeof(resultSum) * cols * rows); 
+
+    for(int i = 0 ; i < cols ; i++) {
+        A[i] = &tmp[i * cols];
+    }
+}
+
+void print( resultSum** A, int rows, int cols) {
+  for(long i = 0 ; i < rows; i++) { //rows
+        for(long j = 0 ; j < cols; j++) {  //cols
+            printf("%d ",  A[i][j].id); // print the cell value
+        }
+        printf("\n"); //at the end of the row, print a new line
+    }
+    printf("----------------------------\n");
+}
